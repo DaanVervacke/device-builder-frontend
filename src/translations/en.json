@@ -20,6 +20,8 @@
     "adopt_description": "Creates a local ESPHome config for {name} built on the vendor's package. You build and install updates from this dashboard.",
     "adopt_source_label": "Configuration source",
     "adopt_rename_hint": "Changing the hostname will build and install new firmware over the network.",
+    "adopt_wired_skip": "This device is connected over Ethernet",
+    "adopt_wired_undo": "Enter Wi-Fi credentials instead",
     "adopt_ota_signed_hint": "This device runs firmware signed by its manufacturer, so the first install of your own firmware needs a USB cable. You can change the hostname after that.",
     "adopt_field_friendly_name": "Friendly name (optional)",
     "adopt_encryption_title": "Enable encryption",

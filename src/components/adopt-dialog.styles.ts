@@ -114,6 +114,11 @@ export const adoptDialogStyles = css`
     font-size: var(--wa-font-size-xs);
   }
 
+  .wired-toggle {
+    display: block;
+    margin: 0 0 var(--wa-space-m);
+  }
+
   .checkbox-title {
     font-size: var(--wa-font-size-s);
     font-weight: var(--wa-font-weight-bold);

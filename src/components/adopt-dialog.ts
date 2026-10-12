@@ -64,6 +64,7 @@ export class ESPHomeAdoptDialog extends LitElement {
   @state() private _error: string | null = null;
   @state() private _ssid = "";
   @state() private _password = "";
+  @state() private _wired = false;
   // undefined until config/get_secrets resolves; only fetched for a
   // network=wifi device, so a non-wifi adopt never blocks on it.
   @state() private _hasWifiSecrets?: boolean;
@@ -100,6 +101,7 @@ export class ESPHomeAdoptDialog extends LitElement {
     this._error = null;
     this._ssid = "";
     this._password = "";
+    this._wired = false;
     this._hasWifiSecrets = undefined;
     this._dialog.open = true;
     /* Seed the shared name pair. The hostname seeds to the
@@ -151,8 +153,9 @@ export class ESPHomeAdoptDialog extends LitElement {
   // (_hasWifiSecrets undefined) so a fast Enter can't skip the store, and
   // once the Wi-Fi step shows require an SSID + a valid-length password.
   // Read by both canSubmit and _submit so the Enter path (which bypasses
-  // the disabled button) is guarded too.
+  // the disabled button) is guarded too. A wired skip clears both blocks.
   private get _wifiBlocking(): boolean {
+    if (this._wired) return false;
     return (
       (this._needsWifi && this._hasWifiSecrets === undefined) ||
       (this._collectWifi &&
@@ -263,7 +266,7 @@ export class ESPHomeAdoptDialog extends LitElement {
                           ssid: this._ssid,
                           password: this._password,
                           tooShort: isWifiPasswordTooShort(this._password),
-                          disabled: this._busy,
+                          disabled: this._busy || this._wired,
                           onSsidInput: (value) => {
                             this._ssid = value;
                           },
@@ -271,6 +274,20 @@ export class ESPHomeAdoptDialog extends LitElement {
                             this._password = value;
                           },
                         })}
+                        <button
+                          type="button"
+                          class="link-button wired-toggle"
+                          ?disabled=${this._busy}
+                          @click=${() => {
+                            this._wired = !this._wired;
+                          }}
+                        >
+                          ${this._localize(
+                            this._wired
+                              ? "dashboard.adopt_wired_undo"
+                              : "dashboard.adopt_wired_skip"
+                          )}
+                        </button>
                       `
                     : nothing
                 }
@@ -380,7 +397,10 @@ export class ESPHomeAdoptDialog extends LitElement {
       // catch and leaves the dialog open. ``secrets-saved`` refreshes the
       // editor's secret pickers and the kebab wording. Store the raw SSID
       // (whitespace is significant); the trim is only the non-empty gate.
-      if (this._collectWifi) {
+      // A wired skip leaves the store alone: the backend derives the
+      // wifi block from the resolved package, so the import validates
+      // without shared secrets.
+      if (this._collectWifi && !this._wired) {
         await this._api.setWifiCredentials(this._ssid, this._password);
         window.dispatchEvent(
           new CustomEvent("secrets-saved", { detail: { source: this } })

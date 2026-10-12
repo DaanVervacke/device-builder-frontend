@@ -6,7 +6,7 @@
  * double-import on a held Enter. The Enter->action wiring itself mirrors
  * rename-device-dialog and is covered there.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/util/notify.js", () => ({
   LONG_TOAST_DURATION_MS: 8000,
@@ -440,5 +440,101 @@ describe("adopt-dialog wifi step (#1742)", () => {
     expect(getSecretKeys).not.toHaveBeenCalled();
     expect(priv._collectWifi).toBe(false);
     expect(priv._wifiBlocking).toBe(false);
+  });
+});
+
+describe("adopt-dialog wired skip", () => {
+  let savedListener: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    _resetSecretKeysCache();
+    savedListener = vi.fn();
+    window.addEventListener("secrets-saved", savedListener as EventListener);
+  });
+
+  afterEach(() => {
+    window.removeEventListener("secrets-saved", savedListener as EventListener);
+  });
+
+  it("imports without storing wifi credentials after a wired skip", async () => {
+    const { priv, setWifiCredentials, importDevice } = await makeDialog([]);
+    await openSettled(priv, wifiDevice());
+    await vi.waitFor(() => expect(priv._collectWifi).toBe(true));
+    priv._wired = true;
+
+    expect(priv._wifiBlocking).toBe(false);
+    await priv._submit();
+
+    expect(setWifiCredentials).not.toHaveBeenCalled();
+    expect(importDevice).toHaveBeenCalledTimes(1);
+    expect(savedListener).not.toHaveBeenCalled();
+  });
+
+  it("toggles the wired skip from the rendered link", async () => {
+    const { priv } = await makeDialog([]);
+    await openSettled(priv, wifiDevice());
+    await vi.waitFor(() => expect(priv._collectWifi).toBe(true));
+    const toggle = priv.shadowRoot!.querySelector(".wired-toggle") as HTMLButtonElement;
+    expect(toggle.textContent).toContain("dashboard.adopt_wired_skip");
+
+    toggle.click();
+    await priv.updateComplete;
+
+    expect(priv._wired).toBe(true);
+    expect(priv._wifiBlocking).toBe(false);
+    expect(toggle.textContent).toContain("dashboard.adopt_wired_undo");
+  });
+
+  it("undoes the wired skip and re-blocks submit", async () => {
+    const { priv } = await makeDialog([]);
+    await openSettled(priv, wifiDevice());
+    await vi.waitFor(() => expect(priv._collectWifi).toBe(true));
+    priv._wired = true;
+    await priv.updateComplete;
+
+    const toggle = priv.shadowRoot!.querySelector(".wired-toggle") as HTMLButtonElement;
+    toggle.click();
+    await priv.updateComplete;
+
+    expect(priv._wired).toBe(false);
+    expect(priv._wifiBlocking).toBe(true);
+    expect(toggle.textContent).toContain("dashboard.adopt_wired_skip");
+  });
+
+  it("disables the credential fields while the wired skip is active", async () => {
+    const { priv } = await makeDialog([]);
+    await openSettled(priv, wifiDevice());
+    await vi.waitFor(() => expect(priv._collectWifi).toBe(true));
+    const ssid = () =>
+      priv.shadowRoot!.querySelector("#onboarding-ssid") as HTMLInputElement;
+
+    expect(ssid().disabled).toBe(false);
+
+    priv._wired = true;
+    await priv.updateComplete;
+    expect(ssid().disabled).toBe(true);
+
+    priv._wired = false;
+    await priv.updateComplete;
+    expect(ssid().disabled).toBe(false);
+  });
+
+  it("renders no toggle when the shared secret already exists", async () => {
+    const { priv } = await makeDialog(["wifi_ssid", "wifi_password"]);
+    await openSettled(priv, wifiDevice());
+    await vi.waitFor(() => expect(priv._hasWifiSecrets).toBe(true));
+
+    expect(priv.shadowRoot!.querySelector(".wired-toggle")).toBeNull();
+  });
+
+  it("resets the wired skip when the dialog reopens", async () => {
+    const { priv } = await makeDialog([]);
+    await openSettled(priv, wifiDevice());
+    await vi.waitFor(() => expect(priv._collectWifi).toBe(true));
+    priv._wired = true;
+
+    await openSettled(priv, wifiDevice());
+
+    expect(priv._wired).toBe(false);
   });
 });

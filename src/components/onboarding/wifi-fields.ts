@@ -25,8 +25,9 @@ export interface WifiFieldsProps {
 }
 
 /**
- * SSID + password inputs shared by the first-run wizard's Wi-Fi step and the
- * standalone credential-rotation dialog so the two never drift.
+ * SSID + password inputs shared by the first-run wizard's Wi-Fi step, the
+ * adopt dialog, and the standalone credential-rotation dialog so the three
+ * never drift.
  */
 export function renderWifiFields(props: WifiFieldsProps): TemplateResult {
   const { localize, ssid, password, disabled, tooShort } = props;
